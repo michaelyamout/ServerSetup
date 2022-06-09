@@ -12,7 +12,7 @@ fi
 ### Functions ###
 
 function debian_initialize() {
-    echo "Updating and Installing Dependicies"
+    echo "Updating and Installing Dependencies"
     echo "deb http://ftp.debian.org/debian stretch-backports main" >> /etc/apt/sources.list
     apt-get -qq update > /dev/null 2>&1
     echo "...keep waiting..."
@@ -73,8 +73,10 @@ EOF
         ;;
     esac
     ufw allow from $extIP to any > /dev/null 2>&1
+    ufw allow from 10.0.0.0/8 > /dev/null 2>&1  # Allows Internal IP space just in case. . .
     ufw allow 80/tcp > /dev/null 2>&1
     ufw allow 443/tcp > /dev/null 2>&1
+    ufw allow 22/tcp > /dev/null 2>&1
     update-rc.d ufw enable > /dev/null 2>&1
     printf 'y\n' | ufw enable > /dev/null 2>&1
     echo "The System will now reboot!"
@@ -250,7 +252,7 @@ function install_postfix_dovecot() {
     password2=$(openssl rand -hex 10 | base64)
     adduser mailcheck --quiet --disabled-password --shell /usr/sbin/nologin --gecos "" > /dev/null 2>&1
     echo "mailcheck:${password2}" | chpasswd > /dev/null 2>&1
-    echo $'\nInstalling Dependicies\n'
+    echo $'\nInstalling Dependencies\n'
     apt-get install -qq -y dovecot-common dovecot-imapd dovecot-lmtpd
     apt-get install -qq -y postfix postgrey postfix-policyd-spf-python
     apt-get install -qq -y opendkim opendkim-tools
