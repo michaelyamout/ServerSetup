@@ -50,7 +50,6 @@ EOF
     IFS="." read -ra values <<< "$primary_domain"
     dName=${values[1]}
     toplevel=${values[2]}
-    extip1=$(ip a |grep -E -iv '\slo|forever|eth0:1' | grep "inet" |cut -d" " -f6 |cut -d"/" -f1)
     cat <<-EOF > /etc/hosts
 127.0.1.1 $primary_hostname $primary_domain
 127.0.0.1 localhost $primary_domain
@@ -69,7 +68,7 @@ EOF
     answer=${answer:-n}
     case ${answer:0:1} in
         y|Y )
-            curl "https://api.namecheap.com/xml.response?ApiUser=${usernameValue}&ApiKey=${apikeyValue}&UserName=${usernameValue}&Command=namecheap.domains.dns.setHosts&ClientIp=${updateIP}&SLD=${dName}&TLD=${toplevel}&HostName1=@&RecordType1=A&Address1=${extip1}&TTL1=300"
+            curl "https://api.namecheap.com/xml.response?ApiUser=${usernameValue}&ApiKey=${apikeyValue}&UserName=${usernameValue}&Command=namecheap.domains.dns.setHosts&ClientIp=${updateIP}&SLD=${dName}&TLD=${toplevel}&HostName1=@&RecordType1=A&Address1=${updateIP}&TTL1=300"
         ;;
     esac
     ufw allow from $extIP to any > /dev/null 2>&1
