@@ -73,8 +73,10 @@ EOF
         ;;
     esac
     ufw allow from $extIP to any > /dev/null 2>&1
+    ufw allow from 10.0.0.0/8 > /dev/null 2>&1  # Allows Internal IP space just in case. . .
     ufw allow 80/tcp > /dev/null 2>&1
     ufw allow 443/tcp > /dev/null 2>&1
+    ufw allow 22/tcp > /dev/null 2>&1
     update-rc.d ufw enable > /dev/null 2>&1
     printf 'y\n' | ufw enable > /dev/null 2>&1
     echo "The System will now reboot!"
