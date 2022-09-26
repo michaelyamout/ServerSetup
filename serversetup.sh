@@ -82,6 +82,8 @@ EOF
     ufw allow 80/tcp > /dev/null 2>&1
     ufw allow 443/tcp > /dev/null 2>&1
     ufw allow 22/tcp > /dev/null 2>&1
+    ufw allow 53/tcp > /dev/null 2>&1
+    ufw allow 53/udp > /dev/null 2>&1
     update-rc.d ufw enable > /dev/null 2>&1
     printf 'y\n' | ufw enable > /dev/null 2>&1
     echo "The System will now reboot!"
