@@ -73,17 +73,30 @@ EOF
     esac
     ufw allow from $extIP to any > /dev/null 2>&1
     ufw allow from 10.0.0.0/8 > /dev/null 2>&1  # Allows Internal IP space just in case. . .
+    ufw allow 22/tcp > /dev/null 2>&1
     # UFW Deny from Censys.io Scanners:  https://support.censys.io/hc/en-us/articles/360043177092-Opt-Out-of-Data-Collection
     ufw deny from 162.142.125.0/24 > /dev/null 2>&1
     ufw deny from 167.94.138.0/24 > /dev/null 2>&1
     ufw deny from 167.94.145.0/24 > /dev/null 2>&1
     ufw deny from 167.94.146.0/24 > /dev/null 2>&1
-    ufw deny from 167.248.133.0/24 > /dev/null 2>&1
-    ufw allow 80/tcp > /dev/null 2>&1
-    ufw allow 443/tcp > /dev/null 2>&1
-    ufw allow 22/tcp > /dev/null 2>&1
+    ufw deny from 167.248.133.0/24 > /dev/null 2>&
+    ufw deny from 199.45.154.0/24 > /dev/null 2>&
+    ufw deny from 199.45.155.0/24 > /dev/null 2>&
+    # UFW Deny from Microsoft IP Space
+    ufw deny from 20.48.0.0/12 to any > /dev/null 2>&1
+    ufw deny from 20.33.0.0/16 to any > /dev/null 2>&1
+    ufw deny from 20.36.0.0/14 to any > /dev/null 2>&1
+    ufw deny from 20.34.0.0/15 to any > /dev/null 2>&1
+    ufw deny from 20.40.0.0/13 to any > /dev/null 2>&1
+    ufw deny from 20.128.0.0/16 to any > /dev/null 2>&1
+    ufw deny from 20.64.0.0/10 to any > /dev/null 2>&1
+    ufw deny from 20.0.0.0/11 to any > /dev/null 2>&1
+    ufw deny from 104.208.0.0/13 to any > /dev/null 2>&1
+    # Allow Web/SSH/DNS
     ufw allow 53/tcp > /dev/null 2>&1
     ufw allow 53/udp > /dev/null 2>&1
+    ufw allow 80/tcp > /dev/null 2>&1
+    ufw allow 443/tcp > /dev/null 2>&1
     update-rc.d ufw enable > /dev/null 2>&1
     printf 'y\n' | ufw enable > /dev/null 2>&1
     echo "The System will now reboot!"
