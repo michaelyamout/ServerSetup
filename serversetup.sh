@@ -1,8 +1,15 @@
 #!/bin/bash
 
+### Variables ###
+
+# If you have NameCheap API access, update these two variables
 apikeyValue="<APIKEY>"
 usernameValue="<USERNAME>"
+# Typically, you do not need to update this variable
 updateIP=$(curl icanhazip.com)
+
+
+### Notification ###
 
 if [[ $EUID -ne 0 ]]; then
     echo "Please run this script as root" 1>&2
