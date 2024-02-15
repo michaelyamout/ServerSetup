@@ -92,9 +92,9 @@ EOF
     ufw deny from 167.94.138.0/24 > /dev/null 2>&1
     ufw deny from 167.94.145.0/24 > /dev/null 2>&1
     ufw deny from 167.94.146.0/24 > /dev/null 2>&1
-    ufw deny from 167.248.133.0/24 > /dev/null 2>&
-    ufw deny from 199.45.154.0/24 > /dev/null 2>&
-    ufw deny from 199.45.155.0/24 > /dev/null 2>&
+    ufw deny from 167.248.133.0/24 > /dev/null 2>&1
+    ufw deny from 199.45.154.0/24 > /dev/null 2>&1
+    ufw deny from 199.45.155.0/24 > /dev/null 2>&1
     # UFW Deny from Microsoft IP Space
     ufw deny from 20.48.0.0/12 to any > /dev/null 2>&1
     ufw deny from 20.33.0.0/16 to any > /dev/null 2>&1
