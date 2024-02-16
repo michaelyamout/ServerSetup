@@ -1508,7 +1508,7 @@ cat <<-EOF
 EOF
 
 PS3="Server Setup Script - Pick an option: "
-options=("Debian Prep" "Account Setup" "Install SSL" "Install Mail Server" "Setup HTTPS Website" "HTTPS C2 Done Right" "Randomize Web Structure" "Get DNS Entries" "Check DKIM" "Setup SMB Share" "Setup WebDAV Share" "Install WebMail" "Roll da Domain" "Install VPN" "Obtain DNS Server")
+options=("Debian Prep" "Account Setup" "Install SSL" "Install Mail Server" "Setup HTTPS Website" "HTTPS C2 Done Right" "Randomize Web Structure" "Get Mail Server DNS Entries" "Check DKIM" "Setup SMB Share" "Setup WebDAV Share" "Install WebMail" "Roll da Domain" "Install VPN" "Obtain DNS Server")
 select opt in "${options[@]}" "Quit"; do
 
     case "$REPLY" in
