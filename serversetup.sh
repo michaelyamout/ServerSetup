@@ -628,7 +628,7 @@ function httpsc2doneright(){
     echo ""
     read -p "Enter a random password to be used for the Java Keystore [ENTER]: " -r password
     echo ""
-    cslocation="/root/cobaltstrike"
+    cslocation="/opt/cobaltstrike"
     read -e -i "$cslocation" -p "Enter the folder-path to cobaltstrike (tip: Use tab complete) [ENTER]: " -r cobaltStrike
     cobaltStrike="${cobaltStrike:-$cslocation}"
     echo
