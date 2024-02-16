@@ -651,7 +651,7 @@ function httpsc2doneright(){
     echo '[Starting] Cloning into amazon.profile for testing.'
     wget https://raw.githubusercontent.com/rsmudge/Malleable-C2-Profiles/master/normal/amazon.profile --no-check-certificate -O amazon.profile
     wget https://raw.githubusercontent.com/rsmudge/Malleable-C2-Profiles/master/normal/ocsp.profile --no-check-certificate -O ocsp.profile    
-    echo '[Success] ocsp.profile clonned.'
+    echo '[Success] ocsp.profile cloned.'
     echo '[Starting] Adding java keystore / password to amazon.profile.'
     echo " " >> amazon.profile
     echo 'https-certificate {' >> amazon.profile
