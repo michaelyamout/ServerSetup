@@ -624,12 +624,12 @@ EOF
 function httpsc2doneright(){
     echo -n "NOTE:  Traffic profiles should only be added to https communications!"
     echo ""
-    read -p "Enter your DNS (A) record for domain [ENTER]: " -r domain
+    read -p "Enter your core domain name (e.g. github.com) [ENTER]: " -r domain
     echo ""
-    read -p "Enter your common password to be used [ENTER]: " -r password
+    read -p "Enter a random password to be used for the Java Keystore [ENTER]: " -r password
     echo ""
     cslocation="/root/cobaltstrike"
-    read -e -i "$cslocation" -p "Enter the folder-path to cobaltstrike [ENTER]: " -r cobaltStrike
+    read -e -i "$cslocation" -p "Enter the folder-path to cobaltstrike (tip: Use tab complete) [ENTER]: " -r cobaltStrike
     cobaltStrike="${cobaltStrike:-$cslocation}"
     echo
 
