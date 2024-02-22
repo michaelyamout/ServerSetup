@@ -678,7 +678,7 @@ function get_dns_entries() {
     # toplevel=$( cat /etc/hosts | cut -d"." -f6 | uniq )
     # fulldomain=$( cat /etc/hosts | cut -d"." -f5-7 | uniq )
     dkim2=$( echo ${dkimrecord} | sed -r 's/\+/\%2B/g' | sed -r 's/\=/\%3D/g' | sed -r 's/\;/\%3B/g' | sed -r 's/\//\%2F/g' )
-    dmarcTemp0="v=DMARC1; p=reject"
+    dmarcTemp0="v=DMARC1; p=reject; rua=mailto:postmaster@${domain}"
     dmarcTemp1=$( echo ${dmarcTemp0} | sed -r 's/\=/\%3D/g' | sed -r 's/\;/\%3B/g' | sed -r 's/\ /\%20/g' )
 
     if [[ $fields -eq 2 ]]; then
@@ -708,7 +708,7 @@ function get_dns_entries() {
 
         Record Type: TXT
         Host: ._dmarc
-        Value: v=DMARC1; p=reject
+        Value: v=DMARC1; p=reject; rua=mailto:postmaster@${domain}
         TTL: 5 min
 
         Change Mail Settings to Custom MX and Add New Record
