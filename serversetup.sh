@@ -282,7 +282,7 @@ function install_postfix_dovecot() {
     echo $'###################################################################\n'
     read -p "Enter your mail server's domain (everything after the '@' sign): " -r primary_domain
     echo $'\n'
-    read -p "Enter IP's to allow Relay (if none just hit enter): " -r relay_ip
+    read -p "Enter IPs or CIDRs to allow Relay, such as other Teamservers or GoPhish External (if none just hit enter): " -r relay_ip
     echo $'\n[ ] Configuring Postfix'
 
     cat <<-EOF > /etc/postfix/main.cf
