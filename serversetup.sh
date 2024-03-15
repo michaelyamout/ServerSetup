@@ -282,7 +282,7 @@ function install_postfix_dovecot() {
     echo $'###################################################################\n'
     read -p "Enter your mail server's domain (everything after the '@' sign): " -r primary_domain
     echo $'\n'
-    read -p "Enter IP's to allow Relay (if none just hit enter): " -r relay_ip
+    read -p "Enter IPs or CIDRs to allow Relay, such as other Teamservers or GoPhish External (if none just hit enter): " -r relay_ip
     echo $'\n[ ] Configuring Postfix'
 
     cat <<-EOF > /etc/postfix/main.cf
@@ -678,7 +678,7 @@ function get_dns_entries() {
     # toplevel=$( cat /etc/hosts | cut -d"." -f6 | uniq )
     # fulldomain=$( cat /etc/hosts | cut -d"." -f5-7 | uniq )
     dkim2=$( echo ${dkimrecord} | sed -r 's/\+/\%2B/g' | sed -r 's/\=/\%3D/g' | sed -r 's/\;/\%3B/g' | sed -r 's/\//\%2F/g' )
-    dmarcTemp0="v=DMARC1; p=reject"
+    dmarcTemp0="v=DMARC1; p=reject; rua=mailto:postmaster@${domain}"
     dmarcTemp1=$( echo ${dmarcTemp0} | sed -r 's/\=/\%3D/g' | sed -r 's/\;/\%3B/g' | sed -r 's/\ /\%20/g' )
 
     if [[ $fields -eq 2 ]]; then
@@ -708,7 +708,7 @@ function get_dns_entries() {
 
         Record Type: TXT
         Host: ._dmarc
-        Value: v=DMARC1; p=reject
+        Value: v=DMARC1; p=reject; rua=mailto:postmaster@${domain}
         TTL: 5 min
 
         Change Mail Settings to Custom MX and Add New Record
