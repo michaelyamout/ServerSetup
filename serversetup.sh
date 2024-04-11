@@ -267,6 +267,8 @@ function install_postfix_dovecot() {
     adduser mailcheck --quiet --disabled-password --shell /usr/sbin/nologin --gecos "" > /dev/null 2>&1
     echo "mailcheck:${password2}" | chpasswd > /dev/null 2>&1
     echo $'\nInstalling Dependencies\n'
+    apt-get install -qq -y mariadb-server
+    systemctl enable mariadb --now
     apt-get install -qq -y dovecot-common dovecot-imapd dovecot-lmtpd
     apt-get install -qq -y postfix postgrey postfix-policyd-spf-python
     apt-get install -qq -y opendkim opendkim-tools
