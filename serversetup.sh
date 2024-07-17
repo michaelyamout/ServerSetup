@@ -217,8 +217,13 @@ function install_ssl_Cert() {
             answer=${answer:-n}
              case ${answer:0:1} in
                y|Y )
+                  IFS="." read -ra values <<< "$domain"
+                  sld=${values[0]}
+                  tld=${values[1]}
                   echo $'\nUse this reference API call to enter the upcoming certbot ACME challenges:'
-                  echo "curl \"https://api.namecheap.com/xml.response?ApiUser=${usernameValue}&ApiKey=${apikeyValue}&UserName=${usernameValue}&Command=namecheap.domains.dns.setHosts&ClientIp=${updateIP}&SLD=<SUBDOMAIN>&TLD=<TOP-LEVEL-DOMAIN>&HostName1=_acme-challenge&RecordType1=TXT&Address1=<CERTBOT-OUTPUT-1>&TTL1=300\""
+                  echo "curl \"https://api.namecheap.com/xml.response?ApiUser=${usernameValue}&ApiKey=${apikeyValue}&UserName=${usernameValue}&Command=namecheap.domains.dns.setHosts&ClientIp=${updateIP}&SLD=${sld}&TLD=${tld}&HostName1=_acme-challenge&RecordType1=TXT&Address1=<CERTBOT-TXT-1>&TTL1=300&HostName2=_acme-challenge&RecordType2=TXT&Address1=<CERTBOT-TXT-2>&TTL2=300\""
+                  echo $'\nBe aware that this API call will REPLACE (not append to) all current entries in NameCheap'
+                  echo "See https://www.namecheap.com/support/api/methods/domains-dns/set-hosts/"
                   echo $'\n'
             ;;
              esac
