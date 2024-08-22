@@ -376,6 +376,7 @@ PidFile                             /var/run/opendkim/opendkim.pid
 SignatureAlgorithm      rsa-sha256
 UserID                              opendkim:opendkim
 Socket                              inet:12301@localhost
+SignHeaders                         Date,Subject,To,From,List-ID,List-Unsubscribe,List-Unsubscribe-Post
 EOF
 
     cat <<-EOF > /etc/opendkim/TrustedHosts
